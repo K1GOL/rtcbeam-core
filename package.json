@@ -1,8 +1,28 @@
 {
   "name": "rtcbeam-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "K1GOL",
+  "type": "module",
   "dependencies": {
     "uuid": "^9.0.0"
+  },
+  "description": "Module providing core functionality for rtcbeam.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gv": "npx genversion version.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/K1GOL/rtcbeam-core.git"
+  },
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/K1GOL/rtcbeam-core/issues"
+  },
+  "homepage": "https://github.com/K1GOL/rtcbeam-core#readme",
+  "devDependencies": {
+    "@webpack-cli/generators": "^2.5.0",
+    "genversion": "^3.1.1"
   }
 }

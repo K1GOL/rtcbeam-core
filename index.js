@@ -1,12 +1,11 @@
-// rtcbeam core library.
-import { version } from './package.json'
-import * as nacl from './nacl.min.js'
-import * as naclUtil from './nacl-util.min.js'
+import { version } from './version.js'
+import * as nacl from './nacl.min.cjs'
+import * as naclUtil from './nacl-util.min.cjs'
 import { v4 as uuidv4 } from 'uuid'
-import * as pjs from './peerjs.min.js'
+import * as pjs from './peerjs.min.cjs'
 
 const getVersion = () => {
-  // Test method.
+  // Returns version.
   return version
 }
 
@@ -153,7 +152,7 @@ const requestFile = (id, encrypt, store) => {
   })
 }
 
-const createPeer = (host = '0.peerjs.com', store) => {
+const createPeer = (store, host = '0.peerjs.com') => {
   // This method creates a new peerjs peer and stores it to the provided store object.
   //
   // host is the desired peerjs server to be used.
@@ -170,6 +169,23 @@ const createPeer = (host = '0.peerjs.com', store) => {
     store.appStatus = '❌ An error has occured.'
     console.error(err)
   })
+
+  return peer
 }
 
-export { getVersion, deliverFile, requestFile, createPeer }
+const getNewStore = () => {
+  // Returns a new empty store object.
+  return {
+    appStatus: '',
+    peer: null,
+    fileReady: false,
+    inboundFile: null,
+    outboundFile: null,
+    filename: null,
+    nonce: null,
+    secretKey: null,
+    version: version
+  }
+}
+
+export { getVersion, deliverFile, requestFile, createPeer, getNewStore }
