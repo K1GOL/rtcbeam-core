@@ -71,7 +71,7 @@ End-to-end encryption related values:
 
 ## Example code
 
-```
+```javascript
 // As noted above, bundle with Webpack, etc. and run in a browser.
 
 import * as rtcbeam from 'rtcbeam-core'
