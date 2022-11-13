@@ -1,8 +1,8 @@
 import { version } from './version.js'
-import * as nacl from './nacl.min.cjs'
-import * as naclUtil from './nacl-util.min.cjs'
+import * as nacl from 'tweetnacl'
+import * as naclUtil from 'tweetnacl-util'
 import { v4 as uuidv4 } from 'uuid'
-import * as pjs from './peerjs.min.cjs'
+import { Peer } from 'peerjs'
 
 const getVersion = () => {
   // Returns version.
@@ -160,7 +160,7 @@ const createPeer = (store, host = '0.peerjs.com') => {
 
   // Creates a peerjs peer and saves it.
   store.appStatus = '📡 Establishing connection...'
-  const peer = new pjs.peerjs.Peer('rtb-' + uuidv4(), { host: host })
+  const peer = new Peer('rtb-' + uuidv4(), { host: host })
   store.peer = peer
   peer.on('open', function (id) {
     store.appStatus = '✅ Connected to network.'

@@ -9,6 +9,10 @@ Module providing core functionality for [rtcbeam](https://github.com/K1GOL/rtcbe
 
 rtcbeam-core is built with [PeerJS](https://peerjs.com/), a peer-to-peer library that (unfortunately) will not function outside of a browser. As a result, rtcbeam-core will only work if run in a browser.
 
+### Installation
+
+`npm i rtcbeam-core`
+
 ### `getVersion()`
 
 Returns module version.
@@ -101,7 +105,8 @@ peer.on('open', () => {
     // Data transfer request is complete once store.fileReady is true.
     const interval = setInterval(() => {
       if (store2.fileReady) {
-        store2.inboundFile.text().then((text) => console.log(`Data recieved: ${text}`))
+        // Convert blob to text.
+        store2.inboundFile.text().then((text) => console.log(`Data recieved: ${text}`)) // Hello world!
         clearInterval(interval);
       }
     }, 100)
