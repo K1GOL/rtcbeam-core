@@ -3,122 +3,367 @@ Module providing core functionality for [rtcbeam](https://github.com/K1GOL/rtcbe
 
 ---
 
-## Usage
+# Usage
 
 ### **IMPORTANT NOTE**
 
 rtcbeam-core is built with [PeerJS](https://peerjs.com/), a peer-to-peer library that (unfortunately) will not function outside of a browser. As a result, rtcbeam-core will only work if run in a browser.
 
-### Installation
+# Installation
 
 `npm i rtcbeam-core`
+`import { Rtcbeam } from 'rtcbeam'`
 
-### `getVersion()`
+## `Rtcbeam([host])`
 
-Returns module version.
+Create a new instance of the `Rtcbeam` class with `const rtcbeam = new Rtcbeam(host)`
 
-### `requestFile(id, encrypt, store)`
+Parameters:
+<dl>
+  <dt>host <i>(optional)</i></dt>
+  <dd>URL for any <a href="https://peerjs.com/">PeerServer</a> used to broker connections. Default is 0.peerjs.com</dd>
+</dl>
 
-Request a file from another peer. All peers are currently able to serve one file at a time.
+## rtcbeam.getVersion()
 
-`id`: PeerJS ID of other peer.
+Returns version number.
+```javascript
+console.log(rtcbeam.getVersion())
+// 1.2.3
+```
 
-`encrypt`: True/false for if the transfer should be end-to-end encrypted.
+## rtcbeam.createPeer([host])
 
-`store`: App state object. (See `getNewStore()`)
+Creates new PeerJS peer. Can be called on an existing rtcbeam instance to reconnect to another connection broker server.
 
-### `deliverFile(conn, store)`
+Parameters:
+<dl>
+  <dt>host <i>(optional)</i></dt>
+  <dd>URL for any <a href="https://peerjs.com/">PeerServer</a> used to broker connections. Default is 0.peerjs.com</dd>
+</dl>
 
-Delivers served file to a peer that has requested it.
+Returns:
 
-`conn`: Incoming PeerJs connection from other peer.
+[PeerJS](https://peerjs.com/docs) peer object.
 
-`store`: App state object. (See `getNewStore()`)
+```javascript
+const rtcbeam = new Rtcbeam('0.peerjs.com')
+console.log(rtcbeam.peer.host)
+// 0.peerjs.com
 
-### `createPeer(store[, host])`
+rtcbeam.createPeer('server.example.com')
+console.log(rtcbeam.peer.host)
+// server.example.com
 
-Creates a new [PeerJS peer](https://peerjs.com/docs/). Returns created peer. (Peer is also stored in `store.peer`.)
+const newPeer = rtcbeam.createPeer('server.example.com')
+console.log(newPeer.host)
+// server.example.com
+```
 
-`store`: App state object. (See `getNewStore()`)
+## rtcbeam.serveData(blob[, name, isFile])
 
-`host` (Optional): PeerJS PeerServer to be used. Default is `0.peerjs.com`.
+Serve new data from your rtcbeam client that can be requested by other clients. 
 
-### `getNewStore()`
+Parameters:
+<dl>
+  <dt>blob</dt>
+  <dd>Any Javascript <a href="https://developer.mozilla.org/en-US/docs/Web/API/Blob">Blob</a> containing the data that will be served.</dd>
 
-Returns a new app state object, that stores all required values for a client. Store the returned object and pass to functions as the `store` value.
+  <dt>name <i>(optional)</i></dt>
+  <dd>Name of the data. If no name is provided, the MIME type of the blob will be used.</dd>
 
-Returned object has the following values:
+  <dt>isFile <i>(optional)</i></dt>
+  <dd>Boolean that should be true if the served data should be interpreted as a file, false otherwise. Default is true.</dd>
+</dl>
 
-`appStatus`: String, that describes the current status of the app.
+Returns:
 
-`peer`: PeerJS peer used by the client. See PeerJs documentation for more information. Modify this to configure the client to use different PeerJS settings.
+Content ID of the served data. CID will be used by other peers to request this data.
 
-`outboundFile`: Blob where the file being served by this client is stored.
+```javascript
+const cid = rtcbeam.serveData(new Blob(['Hello world!']), 'hello', false)
 
-`version`: rtcbeam-core version.
+/* -- or -- */
 
-These values are best used with reactive JS frameworks to display information about file transfers to the user as it changes:
+const cid = rtcbeam.serveData(new Blob(['data-read-from-file']), 'file.txt', true)
 
-`fileReady`: Boolean indicating if an incoming file transfer is done.
+console.log(cid)
+// CID of served data, for example
+// 9907f5ca-ee52-44ac-abc1-74e31ceb6a95
+```
 
-`inboundFile`: Blob that stores the file being recieved from another peer.
+## rtcbeam.removeData(cid)
 
-`filename`: Stores the filename of the incoming file.
+Removes served data and makes it no longer available.
 
-End-to-end encryption related values:
+Parameters:
+<dl>
+  <dt>cid</dt>
+  <dd>Content ID of the data to be removed.</dd>
+</dl>
 
-`nonce`: E2E encryption nonce.
+```javascript
+const cid = rtcbeam.serveData(new Blob(['Hello world!']))
+// Served.
 
-`secretKey`: E2E encryption secret key.
+rtcbeam.removeData(cid)
+// Gone, reduced to atoms.
+```
+
+## rtcbeam.requestData(id, cid[, encrypt])
+
+Requests data from another client by client's ID and data CID.
+
+Parameters:
+<dl>
+  <dt>id</dt>
+  <dd>ID of other peer.</dd>
+
+  <dt>cid</dt>
+  <dd>Content ID of the desired data from other peer.</dd>
+
+  <dt>encrypt <i>(optional)</i></dt>
+  <dd>True for end-to-end encryption, false to skip encryption. Default is true.</dd>
+</dl>
+
+```javascript
+rtcbeam.requestData('other-peer-id', 'some-cid')
+
+rtcbeam.on('transfer-completed', (blob) => {
+  blob.text().then(t => console.log(t))
+  // Writes requested data as text.
+})
+```
 
 ---
 
-## Example code
+## Events:
+
+Listen to with ```rtcbeam.on('event', (param1, param2...) => { ... })```
+
+---
+
+## .on('ready', () => { })
+
+Emitted when rtcbeam client is ready and has connected to the provided PeerServer after initialization. Client can now be used for data transfer.
+
+## .on('status', (status) => { })
+
+Emitted when the app status changes.
+
+Parameters:
+<dl>
+  <dt>status</dt>
+  <dd>String describing the new app status.</dd>
+</dl>
+
+## .on('connection', (conn) => { })
+
+Emitted when a new connection to this client has been established.
+
+Parameters:
+<dl>
+  <dt>conn</dt>
+  <dd>Incoming PeerJS connection.</dd>
+</dl>
+
+## .on('send-start', () => { })
+
+Emitted when client has started sending data.
+
+## .on('send-finish', () => { })
+
+Emitted when client has finished sending data.
+
+## .on('recieve-start', () => { })
+
+Emitted when client has started recieving data.
+
+## .on('transfer-completed', (blob, metadata) => { })
+
+Emitted when client has finished recieving data.
+
+Parameters:
+<dl>
+  <dt>blob</dt>
+  <dd>Blob that was recieved from other client</dd>
+
+  <dt>metadata</dt>
+  <dd>Metadata about transferred data. Has the following values:
+
+  name\
+  Name of the data.
+
+  type\
+  MIME type of the data
+
+  cid\
+  Content ID of the data.
+
+  isFile\
+  True if the data should be interpreted as a file, false otherwise.
+
+  </dd>
+</dl>
+
+## .on('not-found', (cid) => { })
+
+Emitted when data has been requested from another peer but was not found by other peer.
+
+Parameters:
+<dl>
+  <dt>cid</dt>
+  <dd>Content ID of the requested data.</dd>
+</dl>
+
+---
+
+## Values:
+
+Various values accessible within an instance of the `Rtcbeam` class.
+
+---
+
+## .appStatus
+
+String describing the current state of the app.
+
+## .peer
+
+[PeerJS peer](https://peerjs.com/docs) used by the client.
+
+## .inboundData
+
+Contains data being transferred to this client from others. Data structure:
+
+```
+.inboundData
+│
+├ .cid-of-some-data
+│  ├ .body      < blob containing data
+│  ├ .name      < data name
+│  ├ .type      < data MIME type
+│  ├ .nonce     < encryption nonce
+│  └ .secretKey < encryption secret key
+│
+├ .cid-of-some-other-data
+...
+```
+
+## .outboundData
+
+Contains data being served by this client and that can be transferred from this client to others. Data structure:
+
+```
+.outboundData
+│
+├ .cid-of-some-data
+│  ├ .body      < blob containing data
+│  ├ .name      < data name
+│  ├ .type      < data MIME type
+│  ├ .nonce     < encryption nonce
+│  └ .secretKey < encryption secret key
+│
+├ .cid-of-some-other-data
+...
+```
+
+## .version
+
+rtcbeam-core version. Identical to `.getVersion()`
+
+---
+
+## Internal functions that are publicly accessible but are mostly useless:
+
+---
+
+## deliverData (request, conn)
+
+Delivers data to another client.
+
+Parameters:
+<dl>
+  <dt>request</dt>
+  <dd>Request sent by another peer.</dd>
+
+  <dt>conn</dt>
+  <dd>PeerJS connection from other peer.</dd>
+</dl>
+
+```javascript
+rtcbeam.on('connection', (conn) => {
+  conn.on('data', (data) => {
+    const request = JSON.parse(data)
+    if (data.action === 'request-data') {
+      rtcbeam.deliverData(request, conn)
+    }
+  })
+})
+```
+
+## recieveData(data, conn)
+
+Recieves data from other peer. Data is written to `rtcbeam.inboundData[cid]`, where cid is Content ID of transferred data. Parameters and usage are identical to `deliverData()`
+
+
+## handleIncomingData(data, conn)
+
+Handles incoming requests and responds accordingly. Parameters are identical to `deliverData()`
+
+## confirmTransferFinish()
+
+Called when data has been sent to other client.
+
+## notifyTransferStart()
+
+Called when data is being recieved from other client.
+
+## dataNotFound(cid)
+
+Called when data was requested but not found by other client.
+
+Parameters:
+<dl>
+  <dt>cid</dt>
+  <dd>Content ID of requested data.</dd>
+</dl>
+
+---
+
+# Example
 
 ```javascript
 // As noted above, bundle with Webpack, etc. and run in a browser.
 
-import * as rtcbeam from 'rtcbeam-core'
+import { Rtcbeam } from 'rtcbeam-core'
 
-// Create store.
-const store = rtcbeam.getNewStore()
+// Create a new client.
+const firstClient = new Rtcbeam()
 
-// Create peer.
-const peer = rtcbeam.createPeer(store)
-// See PeerJS docs for peer usage guide:
-// https://peerjs.com/docs/
-peer.on('open', () => {
-  console.log(`Connected to PeerJS network! My peer id is: ${peer.id}`)
-
-  // Client is now ready, and data can be transfered.
-  // This is how we host some data, for example a file read to a blob: Write it to store.outboundFile.
+// Wait for client to be ready.
+firstClient.on('ready', () => {
+  // Create some data.
   const data = new Blob(['Hello world!'])
-  store.outboundFile = data;
 
-  // Let's create a second peer with its own store, so we can request the data we just served from ourselves.
-  const store2 = rtcbeam.getNewStore()
-  const peer2 = rtcbeam.createPeer(store2)
-  peer2.on('open', () => {
-    // Send the data request from the second peer (by passing store2 as the store) to the first peer (by passing peer.id as the id).
-    rtcbeam.requestFile(peer.id, true, store2);
-    // Handle response.
-    // Data transfer request is complete once store.fileReady is true.
-    const interval = setInterval(() => {
-      if (store2.fileReady) {
-        // Convert blob to text.
-        store2.inboundFile.text().then((text) => console.log(`Data recieved: ${text}`)) // Hello world!
-        clearInterval(interval);
-      }
-    }, 100)
+  // Serve that data and save cid.
+  const cid = firstClient.serveData(data)
+
+  // Create a second client to recieve that data.
+  const secondClient = new Rtcbeam()
+  secondClient.on('ready', () => {
+    // Handle incoming data.
+    secondClient.on('transfer-completed', (blob, metadata) => {
+      blob.text().then(t => {
+        console.log(t)
+        // Hello world!
+      })
+    })
+    // Request served data.
+    secondClient.requestData(firstClient.peer.id, cid)
   })
 })
 
-// Handle the data request.
-peer.on('connection', (conn) => {
-  rtcbeam.deliverFile(conn, store)
-})
-// Note:
-// rtcbeam-core is designed to be used with a reactive JS front-end framework that will react to the value changing. This will probably change in the future. Unfortunately right now using rtcbeam-core might require a decent amount of mental gymnastics.
 ```
 
 ---
