@@ -12,7 +12,8 @@ rtcbeam-core is built with [PeerJS](https://peerjs.com/), a peer-to-peer library
 # Installation
 
 `npm i rtcbeam-core`
-`import { Rtcbeam } from 'rtcbeam'`
+
+`import { Rtcbeam } from 'rtcbeam-core'`
 
 ## `Rtcbeam([host])`
 
