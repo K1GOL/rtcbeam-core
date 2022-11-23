@@ -189,7 +189,7 @@ const Rtcbeam = class extends EventEmitter {
         message: naclUtil.encodeBase64(message),
         authenticationKey: naclUtil.encodeBase64(keyPair.publicKey),
         metadata: {
-          name: isFile ? data.name : 'application/octet-stream',
+          name: isFile ? this.outboundData[request.cid].name : 'application/octet-stream',
           type: mime,
           cid: request.cid,
           isFile: isFile

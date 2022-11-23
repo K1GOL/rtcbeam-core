@@ -1,5 +1,5 @@
 # rtcbeam-core
-Module providing core functionality for [rtcbeam](https://github.com/K1GOL/rtcbeam). Can be used for creating other apps compatible with rtcbeam.
+Peer-to-peer end-to-end encrypted file and data transfer module using PeerJS. Provides core functionality for [rtcbeam](https://github.com/K1GOL/rtcbeam). Can be used for creating other apps compatible with rtcbeam.
 
 ---
 
@@ -49,15 +49,15 @@ Returns:
 
 ```javascript
 const rtcbeam = new Rtcbeam('0.peerjs.com')
-console.log(rtcbeam.peer.host)
+console.log(rtcbeam.peer.options.host)
 // 0.peerjs.com
 
 rtcbeam.createPeer('server.example.com')
-console.log(rtcbeam.peer.host)
+console.log(rtcbeam.peer.options.host)
 // server.example.com
 
 const newPeer = rtcbeam.createPeer('server.example.com')
-console.log(newPeer.host)
+console.log(newPeer.options.host)
 // server.example.com
 ```
 
