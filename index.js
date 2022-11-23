@@ -231,8 +231,6 @@ const Rtcbeam = class extends EventEmitter {
       flags: []
     }))
     this.emit('transfer-completed', blob, data.metadata)
-    // Disconnect from peer.
-    conn.close()
   }
 
   handleIncomingData (data, conn) {
