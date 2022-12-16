@@ -152,15 +152,25 @@ Parameters:
 Available status messages and their default values:
 
 `networkConnecting`: 📡 Establishing connection...
+
 `networkConnected`: ✅ Connected to network.
+
 `error`: ❌ An error has occured.
+
 `peerConnecting`: 💻 Connecting to peer...
+
 `requestingData`: ❔ Requesting file...
+
 `encryptingData`: 🔐 Encrypting file...
+
 `sendingData`: 📡 Sending file...
+
 `decryptingData`: 🔐 Decrypting file...
+
 `transferCompleted`: ✅ File transfer completed.
+
 `receivingData`: 📨 Receiving file...
+
 `dataNotAvailable`: ❌ File is no longer available.
 
 
