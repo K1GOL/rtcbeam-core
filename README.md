@@ -142,8 +142,6 @@ rtcbeam.on('transfer-completed', (blob) => {
 
 Listen to with ```rtcbeam.on('event', (param1, param2...) => { ... })```
 
----
-
 ## .on('ready', () => { })
 
 Emitted when rtcbeam client is ready and has connected to the provided PeerServer after initialization. Client can now be used for data transfer.
@@ -223,8 +221,6 @@ Parameters:
 
 Various values accessible within an instance of the `Rtcbeam` class.
 
----
-
 ## .appStatus
 
 String describing the current state of the app.
@@ -276,8 +272,6 @@ rtcbeam-core version. Identical to `.getVersion()`
 ---
 
 ## Internal functions that are publicly accessible but are mostly useless:
-
----
 
 ## deliverData (request, conn)
 
@@ -366,8 +360,6 @@ firstClient.on('ready', () => {
 })
 
 ```
-
----
 
 ## License
 BSD 2-clause license.
