@@ -1,5 +1,5 @@
 # rtcbeam-core
-Peer-to-peer end-to-end encrypted file and data transfer module using PeerJS. Provides core functionality for [rtcbeam](https://github.com/K1GOL/rtcbeam). Can be used for creating other apps compatible with rtcbeam.
+Peer-to-peer end-to-end encrypted file and data transfer module using PeerJS. Provides core functionality for [rtcbeam](https://github.com/K1GOL/rtcbeam). Can be used to send any kind of data between two peers. Designed for, but not limited to, file transfer.
 
 ---
 
@@ -136,6 +136,65 @@ rtcbeam.on('transfer-completed', (blob) => {
 })
 ```
 
+## rtcbeam.createStatusMessageSet(name[, values])
+
+Creates a new status message set with user defined status messages. These messages will be passed on to the `status` event.
+
+Parameters:
+<dl>
+  <dt>name</dt>
+  <dd>Name of the status message set. Cannot be "default". If one already exists with the same name, it will be overridden.</dd>
+
+  <dt>values <i>(optional)</i></dt>
+  <dd>Object containing the new status messages, see below. If a value is missing, default will be used.</dd>
+</dl>
+
+Available status messages and their default values:
+
+`networkConnecting`: 📡 Establishing connection...
+`networkConnected`: ✅ Connected to network.
+`error`: ❌ An error has occured.
+`peerConnecting`: 💻 Connecting to peer...
+`requestingData`: ❔ Requesting file...
+`encryptingData`: 🔐 Encrypting file...
+`sendingData`: 📡 Sending file...
+`decryptingData`: 🔐 Decrypting file...
+`transferCompleted`: ✅ File transfer completed.
+`receivingData`: 📨 Receiving file...
+`dataNotAvailable`: ❌ File is no longer available.
+
+
+```javascript
+// Default behaviour:
+rtcbeam.on('status', status => {
+  console.log(status)
+  // When connected to network: ✅ Connected to network.
+  // When sending data: 📡 Sending file...
+  // etc...
+})
+
+/* --- */
+
+// With custom status messages:
+// Create a new set
+rtcbeam.createStatusMessageSet('newMessageSet', {
+  networkConnected: 'Hello world!',
+  sendingData: 'Hello world, again!'
+  // Other messages that are not specified will use default values.
+})
+// Use the new set.
+rtcbeam.statusMessageSet = 'newMessageSet'
+
+rtcbeam.on('status', status => {
+  console.log(status)
+  // When connected to network: Hello world!
+  // When sending data: Hello world, again!
+})
+
+// To use default messages again:
+rtcbeam.statusMessageSet = 'default'
+```
+
 ---
 
 ## Events:
@@ -268,6 +327,28 @@ Contains data being served by this client and that can be transferred from this 
 ## .version
 
 rtcbeam-core version. Identical to `.getVersion()`
+
+## .statusMessageSet
+
+The name of the status message set that is being used. See `.createStatusMessageSet()`. Value for default set is `default`.
+
+## .statusMessages
+
+This object stores different status message sets. Can be written to directly to change status messages, or to create a new message set. See `.createStatusMessageSet()`. Data structure:
+
+```
+.statusMessages
+│
+├ .name-of-message-set
+│  ├ .networkConnecting: string
+│  ├ .networkConnected: string
+│  ├ .error: string
+│  ...
+│  └ .dataNotAvailable: string
+│
+├ .name-of-some-other-message-set
+...
+```
 
 ---
 

@@ -8,11 +8,27 @@ import { EventEmitter } from 'events'
 const Rtcbeam = class extends EventEmitter {
   constructor (host) {
     super()
-    this.appStatus = '',
-    this.peer = this.createPeer(host),
-    this.inboundData = { },
-    this.outboundData = { },
+    this.appStatus = ''
+    this.inboundData = { }
+    this.outboundData = { }
     this.version = version
+    this.statusMessageSet = 'default'
+    this.statusMessages = {
+      default: {
+        networkConnecting: '📡 Establishing connection...',
+        networkConnected: '✅ Connected to network.',
+        error: '❌ An error has occured.',
+        peerConnecting: '💻 Connecting to peer...',
+        requestingData: '❔ Requesting file...',
+        encryptingData: '🔐 Encrypting file...',
+        sendingData: '📡 Sending file...',
+        decryptingData: '🔐 Decrypting file...',
+        transferCompleted: '✅ File transfer completed.',
+        receivingData: '📨 Receiving file...',
+        dataNotAvailable: '❌ File is no longer available.'
+      }
+    }
+    this.peer = this.createPeer(host)
   }
 
   getVersion () {
@@ -20,28 +36,29 @@ const Rtcbeam = class extends EventEmitter {
   }
 
   createPeer (host = '0.peerjs.com') {
+    if (typeof host !== 'string') throw new Error(`createPeer() must be called with a parameter that has a type of string, not ${typeof host}.`)
     // This method creates a new peerjs peer and stores it to the provided store object.
     //
     // host is the desired peerjs server to be used.
-  
+
     // Creates a peerjs peer and returns it.
-    this.appStatus = '📡 Establishing connection...'
+    this.appStatus = this.statusMessages[this.statusMessageSet].networkConnecting
     this.emit('status', this.appStatus)
-    const peer = new Peer('rtb-' + uuidv4(), { host: host })
+    const peer = new Peer('rtb-' + uuidv4(), { host })
     peer.on('open', () => {
-      this.appStatus = '✅ Connected to network.'
+      this.appStatus = this.statusMessages[this.statusMessageSet].networkConnected
       this.emit('status', this.appStatus)
       this.emit('ready')
     })
     peer.on('error', (err) => {
-      this.appStatus = '❌ An error has occured.'
+      this.appStatus = this.statusMessages[this.statusMessageSet].error
       this.emit('status', this.appStatus)
       console.error(err)
     })
 
     peer.on('connection', (conn) => {
       // Handle new incoming connections.
-      this.appStatus = '💻 Connecting to peer...'
+      this.appStatus = this.statusMessages[this.statusMessageSet].peerConnecting
       this.emit('status', this.appStatus)
       this.emit('connection', conn)
       conn.on('data', d => {
@@ -49,7 +66,7 @@ const Rtcbeam = class extends EventEmitter {
         this.handleIncomingData(data, conn)
       })
     })
-  
+
     return peer
   }
 
@@ -60,25 +77,29 @@ const Rtcbeam = class extends EventEmitter {
     // name is name of data.
     // isFile is false if the data served is not a file.
     // Returns content id of the served data.
-    // Type check.
-    if (typeof blob !== typeof new Blob()) throw new Error(`serveData() must be called with a parameter that has a type of ${typeof new Blob}, not ${typeof blob}.`)
-    // Name the data if no name was provided. Default name is data MIME type.
+
+    // Name the data if no name was provided. Default name is data MIME type. Fallback is application/octet-stream.
     if (!name) name = blob.type ? blob.type : 'application/octet-stream'
-    
+    // Type check.
+    if (!(blob instanceof Blob)) throw new Error('serveData() must be called with a parameter \'blob\' that is a Blob.') // eslint-disable-line no-undef
+    if (typeof name !== 'string') throw new Error(`serveData() must be called with a parameter 'name' that has a type of string, not ${typeof name}.`)
+    if (typeof isFile !== 'boolean') throw new Error(`serveData() must be called with a parameter 'isFile' that has a type of boolean, not ${typeof isFile}.`)
+
     const cid = uuidv4()
     this.outboundData[cid] = {
       body: blob,
-      cid: cid,
-      name: name,
+      cid,
+      name,
       type: blob.type,
-      isFile: isFile
+      isFile
     }
     return cid
   }
 
   removeData (cid) {
     // Removes served data by cid.
-    if(this.outboundData[cid]) delete this.outboundData[cid]
+    if (typeof cid !== 'string') throw new Error(`removeData() must be called with a parameter 'cid' that has a type of string, not ${typeof cid}.`)
+    if (this.outboundData[cid]) delete this.outboundData[cid]
   }
 
   requestData (id, cid, encrypt = true) {
@@ -87,14 +108,18 @@ const Rtcbeam = class extends EventEmitter {
     // id is other peer's id.
     // cid is content id of the content that will be requested.
     // encrypt is bool for yes/no encryption.
-  
+
+    if (typeof id !== 'string') throw new Error(`requestData() must be called with a parameter 'id' that has a type of string, not ${typeof id}.`)
+    if (typeof cid !== 'string') throw new Error(`requestData() must be called with a parameter 'cid' that has a type of string, not ${typeof cid}.`)
+    if (typeof encrypt !== 'boolean') throw new Error(`requestData() must be called with a parameter 'encrypt' that has a type of boolean, not ${typeof encrypt}.`)
+
     // Request data.
-    this.appStatus = '💻 Connecting to peer...'
+    this.appStatus = this.statusMessages[this.statusMessageSet].peerConnecting
     this.emit('status', this.appStatus)
     const conn = this.peer.connect(id)
     conn.on('open', () => {
       // Connection established.
-      this.appStatus = '❔ Requesting file...'
+      this.appStatus = this.statusMessages[this.statusMessageSet].requestingData
       this.emit('status', this.appStatus)
       // Handle data sent back on same connection.
       conn.on('data', (d) => {
@@ -109,14 +134,14 @@ const Rtcbeam = class extends EventEmitter {
       if (!encrypt) flags.push('no-encryption')
       conn.send(JSON.stringify({
         action: 'request-data',
-        cid: cid,
-        flags: flags,
+        cid,
+        flags,
         encryptionKey: naclUtil.encodeBase64(keyPair.publicKey),
         nonce: naclUtil.encodeBase64(nonce)
       }))
       // Store nonce and secrey key for decrypting reply.
       this.inboundData[cid] = {
-        nonce: nonce,
+        nonce,
         secretKey: keyPair.secretKey,
         body: null,
         name: null,
@@ -144,8 +169,6 @@ const Rtcbeam = class extends EventEmitter {
     }
 
     // Deliver data.
-    this.appStatus = '✉️ Delivering file to peer...'
-    this.emit('status', this.appStatus)
     const data = this.outboundData[request.cid].body
     const isFile = this.outboundData[request.cid].isFile
     const mime = isFile ? this.outboundData[request.cid].type : 'application/octet-stream'
@@ -159,7 +182,7 @@ const Rtcbeam = class extends EventEmitter {
       if (request.flags.includes('no-encryption')) {
         message = new Uint8Array(buf)
       } else {
-        this.appStatus = '🔐 Encrypting file...'
+        this.appStatus = this.statusMessages[this.statusMessageSet].encryptingData
         this.emit('status', this.appStatus)
         message = nacl.box(
           new Uint8Array(buf),
@@ -181,18 +204,18 @@ const Rtcbeam = class extends EventEmitter {
       // Append not-file if not file.
       if (!isFile) flags.push('not-file')
       // Send data over network.
-      this.appStatus = '📡 Sending file...'
+      this.appStatus = this.statusMessages[this.statusMessageSet].sendingData
       this.emit('status', this.appStatus)
       conn.send(JSON.stringify({
         action: 'deliver-data',
-        flags: flags,
+        flags,
         message: naclUtil.encodeBase64(message),
         authenticationKey: naclUtil.encodeBase64(keyPair.publicKey),
         metadata: {
           name: isFile ? this.outboundData[request.cid].name : 'application/octet-stream',
           type: mime,
           cid: request.cid,
-          isFile: isFile
+          isFile
         }
       }))
     })
@@ -207,7 +230,7 @@ const Rtcbeam = class extends EventEmitter {
     if (data.flags.includes('no-encryption')) {
       uintArray = naclUtil.decodeBase64(data.message)
     } else {
-      this.appStatus = '🔐 Decrypting file...'
+      this.appStatus = this.statusMessages[this.statusMessageSet].decryptingData
       this.emit('status', this.appStatus)
       uintArray = nacl.box.open(
         naclUtil.decodeBase64(data.message),
@@ -220,10 +243,10 @@ const Rtcbeam = class extends EventEmitter {
     // Data ready.
     // application/octet-stream is used for raw data, otherwise MIME type of file is specified.
     const blobOptions = data.metadata.type === 'application/octet-stream' ? { } : { type: data.metadata.type }
-    const blob = new Blob([uintArray], blobOptions)
+    const blob = new Blob([uintArray], blobOptions) // eslint-disable-line no-undef
     this.inboundData[data.metadata.cid].body = blob
     this.inboundData[data.metadata.cid].name = data.metadata.name
-    this.appStatus = '✅ File transfer completed.'
+    this.appStatus = this.statusMessages[this.statusMessageSet].transferCompleted
     this.emit('status', this.appStatus)
     // Notify sender that transfer is done.
     conn.send(JSON.stringify({
@@ -235,7 +258,7 @@ const Rtcbeam = class extends EventEmitter {
 
   handleIncomingData (data, conn) {
     // This function handles all incoming requests.
-    // Recieve connection.    
+    // Recieve connection.
     if (data.action === 'deliver-data' && data.authenticationKey && data.message) {
       this.recieveData(data, conn)
     } else if (data.action === 'notify-transfer-start') {
@@ -254,21 +277,34 @@ const Rtcbeam = class extends EventEmitter {
   }
 
   confirmTransferFinish () {
-    this.appStatus = '✅ File transfer completed.'
+    this.appStatus = this.statusMessages[this.statusMessageSet].transferCompleted
     this.emit('status', this.appStatus)
     this.emit('send-finish')
   }
 
   notifyTransferStart () {
-    this.appStatus = '📨 Recieving file...'
+    this.appStatus = this.statusMessages[this.statusMessageSet].receivingData
     this.emit('status', this.appStatus)
     this.emit('recieve-start')
   }
 
   dataNotFound (cid) {
-    this.appStatus = '❌ File is no longer available.'
+    this.appStatus = this.statusMessages[this.statusMessageSet].dataNotAvailable
     this.emit('status', this.appStatus)
     this.emit('not-found', cid)
+  }
+
+  createStatusMessageSet (name, values) {
+    if (!name) throw new Error('A name must be provided for a status message set.')
+    if (name === 'default') throw new Error('A new status message set cannot be called default.')
+    if (typeof name !== 'string') throw new Error(`createStatusMessageSet() must be called with a parameter 'name' that has a type of string, not ${typeof name}`)
+    // Creates a new status message set and assigns values to it.
+    // Create new set with default messages.
+    this.statusMessages[name] = this.statusMessages.default
+    // Assign new messages.
+    for (const [key, value] of Object.entries(values)) {
+      this.statusMessages[name][key] = value
+    }
   }
 }
 
