@@ -35,16 +35,21 @@ const Rtcbeam = class extends EventEmitter {
     return this.version
   }
 
-  createPeer (host = '0.peerjs.com') {
+  createPeer (host = '0.peerjs.com', options) {
     if (typeof host !== 'string') throw new Error(`createPeer() must be called with a parameter that has a type of string, not ${typeof host}.`)
     // This method creates a new peerjs peer and stores it to the provided store object.
     //
     // host is the desired peerjs server to be used.
+    // options will be passed to PeerJS.
+
+    // Check if options were provided
+    if (!options) options = { }
+    options.host = host
 
     // Creates a peerjs peer and returns it.
     this.appStatus = this.statusMessages[this.statusMessageSet].networkConnecting
     this.emit('status', this.appStatus)
-    const peer = new Peer('rtb-' + uuidv4(), { host })
+    const peer = new Peer('rtb-' + uuidv4(), options)
     peer.on('open', () => {
       this.appStatus = this.statusMessages[this.statusMessageSet].networkConnected
       this.emit('status', this.appStatus)
@@ -116,7 +121,7 @@ const Rtcbeam = class extends EventEmitter {
     // Request data.
     this.appStatus = this.statusMessages[this.statusMessageSet].peerConnecting
     this.emit('status', this.appStatus)
-    const conn = this.peer.connect(id)
+    const conn = this.peer.connect(id, { reliable: true })
     conn.on('open', () => {
       // Connection established.
       this.appStatus = this.statusMessages[this.statusMessageSet].requestingData
@@ -155,7 +160,7 @@ const Rtcbeam = class extends EventEmitter {
     //
     // request is the original request from other peer.
     // conn is the peerjs connection object.
-    // Request for data has been recieved.
+    // Request for data has been received.
     // Check that data exists.
     if (!this.outboundData[request.cid]) {
       // Did not exist.
@@ -203,6 +208,20 @@ const Rtcbeam = class extends EventEmitter {
       const flags = request.flags
       // Append not-file if not file.
       if (!isFile) flags.push('not-file')
+
+      // Start sending progress tracking information.
+      const interval = setInterval(() => {
+        const progress = conn.dataChannel.bufferedAmount
+        conn.send(JSON.stringify({
+          action: 'progress',
+          progress,
+          cid: request.cid
+        }))
+        this.emit('send-progress', progress, request.cid)
+        // Stop sending progress tracking information when transfer is done.
+        if (progress <= 0) clearInterval(interval)
+      }, 1)
+
       // Send data over network.
       this.appStatus = this.statusMessages[this.statusMessageSet].sendingData
       this.emit('status', this.appStatus)
@@ -221,11 +240,11 @@ const Rtcbeam = class extends EventEmitter {
     })
   }
 
-  recieveData (data, conn) {
+  receiveData (data, conn) {
     // This function handles recieving a data transfer.
     // data is incoming message.
     // conn is peerjs connection.
-    // Data recieved, check if decryption is needed.
+    // Data received, check if decryption is needed.
     let uintArray
     if (data.flags.includes('no-encryption')) {
       uintArray = naclUtil.decodeBase64(data.message)
@@ -258,9 +277,9 @@ const Rtcbeam = class extends EventEmitter {
 
   handleIncomingData (data, conn) {
     // This function handles all incoming requests.
-    // Recieve connection.
+    // receive connection.
     if (data.action === 'deliver-data' && data.authenticationKey && data.message) {
-      this.recieveData(data, conn)
+      this.receiveData(data, conn)
     } else if (data.action === 'notify-transfer-start') {
       // Transfer has started.
       this.notifyTransferStart()
@@ -273,6 +292,8 @@ const Rtcbeam = class extends EventEmitter {
       conn.close()
     } else if (data.action === 'data-not-found') {
       this.dataNotFound(data.cid)
+    } else if (data.action === 'progress') {
+      this.emit('receive-progress', data.progress, data.cid)
     }
   }
 
@@ -285,7 +306,7 @@ const Rtcbeam = class extends EventEmitter {
   notifyTransferStart () {
     this.appStatus = this.statusMessages[this.statusMessageSet].receivingData
     this.emit('status', this.appStatus)
-    this.emit('recieve-start')
+    this.emit('receive-start')
   }
 
   dataNotFound (cid) {

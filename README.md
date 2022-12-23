@@ -15,7 +15,7 @@ rtcbeam-core is built with [PeerJS](https://peerjs.com/), a peer-to-peer library
 
 `import { Rtcbeam } from 'rtcbeam-core'`
 
-## `Rtcbeam([host])`
+## `Rtcbeam([host, options])`
 
 Create a new instance of the `Rtcbeam` class with `const rtcbeam = new Rtcbeam(host)`
 
@@ -23,7 +23,13 @@ Parameters:
 <dl>
   <dt>host <i>(optional)</i></dt>
   <dd>URL for any <a href="https://peerjs.com/">PeerServer</a> used to broker connections. Default is 0.peerjs.com</dd>
+  <dt>options <i>(optional)</i></dt>
+  <dd>Options that will be passed on to the <a href="https://peerjs.com/docs/#peer">PeerJS Peer constructor</a>. Host will be overridden with the 'host' parameter.</dd>
 </dl>
+
+```javascript
+const rtcbeam = new Rtcbeam('0.peerjs.com', { pingInterval: 10000 })
+```
 
 ## rtcbeam.getVersion()
 
@@ -243,9 +249,33 @@ Emitted when client has started sending data.
 
 Emitted when client has finished sending data.
 
-## .on('recieve-start', () => { })
+## .on('send-progress', (progress, cid) => { })
+
+Emitted repeatedly while sending data.
+
+Parameters:
+<dl>
+  <dt>progress</dt>
+  <dd>Amount of bytes queued to be sent.</dd>
+  <dt>cid</dt>
+  <dd>Content ID of the data being sent that this progress update belongs to.</dd>
+</dl>
+
+## .on('receive-start', () => { })
 
 Emitted when client has started recieving data.
+
+## .on('receive-progress', (progress, cid) => { })
+
+Emitted repeatedly while sending data.
+
+Parameters:
+<dl>
+  <dt>progress</dt>
+  <dd>Amount of bytes queued to be sent by peer sending data.</dd>
+  <dt>cid</dt>
+  <dd>Content ID of the data being received that this progress update belongs to.</dd>
+</dl>
 
 ## .on('transfer-completed', (blob, metadata) => { })
 
@@ -254,7 +284,7 @@ Emitted when client has finished recieving data.
 Parameters:
 <dl>
   <dt>blob</dt>
-  <dd>Blob that was recieved from other client</dd>
+  <dd>Blob that was received from other client</dd>
 
   <dt>metadata</dt>
   <dd>Metadata about transferred data. Has the following values:
@@ -388,9 +418,9 @@ rtcbeam.on('connection', (conn) => {
 })
 ```
 
-## recieveData(data, conn)
+## receiveData(data, conn)
 
-Recieves data from other peer. Data is written to `rtcbeam.inboundData[cid]`, where cid is Content ID of transferred data. Parameters and usage are identical to `deliverData()`
+receives data from other peer. Data is written to `rtcbeam.inboundData[cid]`, where cid is Content ID of transferred data. Parameters and usage are identical to `deliverData()`
 
 
 ## handleIncomingData(data, conn)
@@ -403,7 +433,7 @@ Called when data has been sent to other client.
 
 ## notifyTransferStart()
 
-Called when data is being recieved from other client.
+Called when data is being received from other client.
 
 ## dataNotFound(cid)
 
@@ -435,7 +465,7 @@ firstClient.on('ready', () => {
   // Serve that data and save cid.
   const cid = firstClient.serveData(data)
 
-  // Create a second client to recieve that data.
+  // Create a second client to receive that data.
   const secondClient = new Rtcbeam()
   secondClient.on('ready', () => {
     // Handle incoming data.
