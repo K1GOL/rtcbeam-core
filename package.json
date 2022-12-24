@@ -1,6 +1,6 @@
 {
   "name": "rtcbeam-core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "K1GOL",
   "type": "module",
   "dependencies": {

@@ -211,6 +211,11 @@ const Rtcbeam = class extends EventEmitter {
 
       // Start sending progress tracking information.
       const interval = setInterval(() => {
+        // Check conn.dataChannel still exists.
+        if (!conn || !conn.dataChannel) {
+          clearInterval(interval)
+          return
+        }
         const progress = conn.dataChannel.bufferedAmount
         conn.send(JSON.stringify({
           action: 'progress',
