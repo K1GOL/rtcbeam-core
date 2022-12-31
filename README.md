@@ -69,7 +69,7 @@ console.log(newPeer.options.host)
 
 ## rtcbeam.serveData(blob[, name, isFile])
 
-Serve new data from your rtcbeam client that can be requested by other clients. 
+Serve new data from your rtcbeam client that can be requested by other clients. Maximum size for single blob is about 800 megabytes.
 
 Parameters:
 <dl>

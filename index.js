@@ -121,7 +121,7 @@ const Rtcbeam = class extends EventEmitter {
     // Request data.
     this.appStatus = this.statusMessages[this.statusMessageSet].peerConnecting
     this.emit('status', this.appStatus)
-    const conn = this.peer.connect(id, { reliable: true })
+    const conn = this.peer.connect(id, { reliable: true, serialization: 'none' })
     conn.on('open', () => {
       // Connection established.
       this.appStatus = this.statusMessages[this.statusMessageSet].requestingData
@@ -197,13 +197,6 @@ const Rtcbeam = class extends EventEmitter {
         )
       }
 
-      // Notify transfer starting.
-      conn.send(JSON.stringify({
-        action: 'notify-transfer-start',
-        flags: []
-      }))
-      this.emit('send-start')
-
       // Copy flags from request.
       const flags = request.flags
       // Append not-file if not file.
@@ -225,23 +218,57 @@ const Rtcbeam = class extends EventEmitter {
         this.emit('send-progress', progress, request.cid)
         // Stop sending progress tracking information when transfer is done.
         if (progress <= 0) clearInterval(interval)
-      }, 1)
+      }, 100)
+
+      // Check that message is not too large.
+      // If it is too large, split it to smaller pieces to avoid exceeding array size limits.
+      let messageToSend = []
+      if (message.length > 1e8) {
+        // Split message into multiple parts with max size of 100 MB.
+        while (message.length > 0) {
+          // Select first 100 MB from message.
+          const end = Math.min(message.length, 1e8)
+          const subarray = message.subarray(0, end)
+          // Encode.
+          const base64 = naclUtil.encodeBase64(subarray)
+          messageToSend.push(base64)
+          // Remove this segment from the original message.
+          message = message.subarray(end, message.length)
+        }
+        flags.push('split-message')
+      } else {
+        // No need to split message.
+        messageToSend = naclUtil.encodeBase64(message)
+      }
+      let stringify
+      try {
+        stringify = JSON.stringify({
+          action: 'deliver-data',
+          flags,
+          message: messageToSend,
+          authenticationKey: naclUtil.encodeBase64(keyPair.publicKey),
+          metadata: {
+            name: isFile ? this.outboundData[request.cid].name : 'application/octet-stream',
+            type: mime,
+            cid: request.cid,
+            isFile
+          }
+        })
+      } catch (err) {
+        console.error(`Unable to send data: ${err}`)
+      }
+
+      // Notify transfer starting.
+      conn.send(JSON.stringify({
+        action: 'notify-transfer-start',
+        flags: []
+      }))
+      this.emit('send-start')
 
       // Send data over network.
       this.appStatus = this.statusMessages[this.statusMessageSet].sendingData
       this.emit('status', this.appStatus)
-      conn.send(JSON.stringify({
-        action: 'deliver-data',
-        flags,
-        message: naclUtil.encodeBase64(message),
-        authenticationKey: naclUtil.encodeBase64(keyPair.publicKey),
-        metadata: {
-          name: isFile ? this.outboundData[request.cid].name : 'application/octet-stream',
-          type: mime,
-          cid: request.cid,
-          isFile
-        }
-      }))
+      conn.send(stringify)
     })
   }
 
@@ -249,15 +276,33 @@ const Rtcbeam = class extends EventEmitter {
     // This function handles recieving a data transfer.
     // data is incoming message.
     // conn is peerjs connection.
+
+    // Concatenate split messages.
+    let incomingMessage
+    if (data.flags.includes('split-message')) {
+      incomingMessage = new Uint8Array(0)
+      for (const subarray of data.message) {
+        // Decode next segment and concatenate with previous segments.
+        const decoded = naclUtil.decodeBase64(subarray)
+        const newArray = new Uint8Array(incomingMessage.length + decoded.length)
+        newArray.set(incomingMessage, 0)
+        newArray.set(decoded, incomingMessage.length)
+        incomingMessage = newArray
+      }
+    } else {
+      // Message was sent in a single piece.
+      incomingMessage = naclUtil.decodeBase64(data.message)
+    }
+
     // Data received, check if decryption is needed.
     let uintArray
     if (data.flags.includes('no-encryption')) {
-      uintArray = naclUtil.decodeBase64(data.message)
+      uintArray = incomingMessage
     } else {
       this.appStatus = this.statusMessages[this.statusMessageSet].decryptingData
       this.emit('status', this.appStatus)
       uintArray = nacl.box.open(
-        naclUtil.decodeBase64(data.message),
+        incomingMessage,
         this.inboundData[data.metadata.cid].nonce,
         naclUtil.decodeBase64(data.authenticationKey),
         this.inboundData[data.metadata.cid].secretKey
