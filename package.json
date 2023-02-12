@@ -1,6 +1,6 @@
 {
   "name": "rtcbeam-core",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "author": "K1GOL",
   "type": "module",
   "dependencies": {
@@ -35,6 +35,7 @@
     "glob-parent": "^5.1.2",
     "got": "^11.8.5",
     "decode-uri-component": "^0.2.2",
-    "json5": "^1.0.2"
+    "json5": "^1.0.2",
+    "cacheable-request": "^10.2.7"
   }
 }
